@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncQuiz</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gideon+Roman&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
+        *, *::before, *::after{ padding:0; margin:0; box-sizing:border-box; }
+        :root{ --mode-color:#60bfbf; --dot-color:white; --txt:#fff; --trans:rgba(0,0,0,.15); }
+        *{ -webkit-tap-highlight-color: transparent; }
+        button{ display:block; background:transparent; border:0; color:var(--txt); cursor:pointer; }
+        html,body{ font-size:18px; height:100%; overflow: hidden; }
+        body{ background:var(--mode-color); width:100%; position:relative; max-height:700px; }
+        section{
+            height:100%; width:100%; position:relative; overflow:scroll; z-index:5;
+            transition:left .5s, background-image .5s ease-in-out; background-color: var(--mode-color);
+            background-image: linear-gradient(rgba(1, 19, 51, 0.7), rgba(1, 19, 51, 0.7)), url('https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=800&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+        #main,#resultPg,#loadPg{ position:absolute; top:0; left:100%; z-index:10; display:none; }
+        
+        #loadPg {
+            background: rgba(1, 19, 51, 0.85) !important;
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loader-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loader-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-top-color: #60bfbf;
+            border-bottom-color: #60bfbf;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+        }
+        .loader-ring:nth-child(2) {
+            width: 75%;
+            height: 75%;
+            border-top-color: orange;
+            border-bottom-color: orange;
+            animation: spin-reverse 0.8s linear infinite;
+        }
+        #centr{
+            position: absolute;
+            color: var(--txt);
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            animation: pulse 1.2s infinite ease-in-out;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.6; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+
+        .heading{
+            text-align:center; font-size:2.2rem; font-family: 'Gideon Roman', cursive; font-weight:bolder;
+            background:var(--trans); backdrop-filter:blur(10px); padding:.3rem 0; color:#f8f8f8;
+            margin:.5rem 1.2rem .5rem; border-radius:.8rem;
+        }
+        #top{
+            height:1rem; margin:3.2rem .8rem .25rem; border:3px var(--txt) solid;
+            border-radius:1rem; position:relative; padding:.1rem; font-weight:bold;
+            text-align:center; background:var(--trans); backdrop-filter:blur(8px);
+        }
+        #QNum{
+            width:3rem; height:3rem; background:var(--txt); padding:.65rem 0; font-size:1.5rem;
+            border-radius:50%; position:absolute; color:orange; box-shadow:0 1px 4px #999;
+            z-index:5; left:50%; top:0%; transform:translate(-50%,-92%);
+        }
+        #prog{ height:100%; position:relative; width:0; left:0; top:0; border-radius:1rem; background:var(--txt); transition:width .3s; z-index:3; }
+        #top>span{
+            display:inline-block; position:relative; top:-2.8rem; padding:.2rem .5rem ;
+            border-radius:.8rem; margin:0 13%; color:var(--txt); font-size:1.4rem; background:var(--trans);
+        }
+
+        #queCont{
+            position:relative; margin:1.3rem auto; background:var(--txt); padding:1.5rem 0 1rem;
+            width:90%; box-shadow: 0 .8rem 1.8rem rgba(0, 41, 22, 0.4); text-align:center;
+            font-family: 'Oswald', sans-serif; border-radius:.4rem; font-size:1.1rem; overflow:hidden;
+        }
+        #que{ color:#444; min-height:3rem; padding:0 .8rem; }
+        .opt{ width:85%; background:#232323; border-radius:3rem; height:2.5rem; margin:.75rem auto; font-size:.85rem; }
+        #chngBtn{ display:flex; justify-content:space-between; padding:.5rem 6%; }
+        #chngBtn>button,#submit,.btn{
+            background:var(--txt); width:4.5rem; height:2.3rem; color:black; font-size:.9rem; font-weight:bold;
+            box-shadow:0 .25rem .7rem rgba(0,24,41,.35);
+        }
+        #prev{ border-radius:2rem .3rem .3rem 2rem; padding-left:.5rem; }
+        #nxt{ border-radius:.3rem 2rem 2rem .3rem; padding-right:.5rem; }
+        #submit{ width:6rem; border-radius:2rem; margin:.2rem auto; display:block; }
+        #resultBox{
+            width:80%; background:var(--trans); backdrop-filter:blur(8px); text-align:center;
+            border-radius:.6rem; margin:1rem auto .5rem; color:var(--txt); padding:.4rem 10% .8rem;
+            box-shadow: 0 .8rem 2rem rgba(0, 41, 22, 0.4);
+        }
+        #resultBox>p{ display: flex; justify-content: space-between; margin:.5rem 0; font-size:.9rem; }
+        .btn{ padding:.6rem 1.2rem; border-radius:3rem; width:auto; height:auto; color:orange; margin:.5rem auto; text-transform:uppercase; font-size:.85rem; }
+        #replay{ margin:1rem auto 0; }
+        
+        .btnCont{ position:absolute; bottom:1.2rem; width:100%; text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        #start{ padding:.75rem 1.6rem; font-size:.9rem; display:inline-block; }
+        #mus{ width:3rem; height:3rem; padding:0; font-size:1.2rem; display:inline-block; vertical-align:middle; margin-left:0; border-radius: 50%; }
+        
+        /* App Logo Badge */
+        .logo-center-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 45vh;
+            position: relative;
+        }
+        .app-logo-badge {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            background: linear-gradient(135deg, rgba(96, 191, 191, 0.25), rgba(255, 165, 0, 0.25));
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: floatBadge 3s ease-in-out infinite;
+        }
+        .app-logo-badge .badge-icon {
+            font-size: 2.8rem;
+            margin-bottom: 2px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        .app-logo-badge .badge-text {
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        @keyframes floatBadge {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        #loadPg{ left:0; z-index:15; display:block; }
+        #mode{
+            position:absolute; top:0; right:0; padding:0; width:2.5rem; height:2.5rem;
+            font-size:1rem; margin:.7rem .7rem 0 0; box-shadow:0 0 .8rem #555; border-radius: 50%;
+        }
+        
+        #menuBtn {
+            position: absolute; top: 0; left: 0; padding: 0; width: 2.5rem; height: 2.5rem;
+            font-size: 1.2rem; margin: .7rem 0 0 .7rem; box-shadow: 0 0 .8rem #555; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; background: white; color: #333; z-index: 6;
+        }
+
+        #drawer {
+            position: fixed; top: 0; left: -75%; width: 75%; height: 100%;
+            background: linear-gradient(135deg, #1f4068, #162447); z-index: 100; transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 8px 0 25px rgba(0,0,0,0.5); padding: 25px 20px; font-family: 'Poppins', sans-serif;
+            color: #fff; overflow-y: auto;
+        }
+        #drawer.open { left: 0; }
+        
+        .drawer-header {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.15); padding-bottom: 12px; margin-bottom: 20px;
+        }
+        #drawer h3 { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.5px; color: #60bfbf; }
+        
+        #drawerClose {
+            background: rgba(255, 255, 255, 0.1); border: none; width: 32px; height: 32px;
+            font-size: 1.2rem; color: #fff; cursor: pointer; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+        }
+        #drawerClose:hover { background: rgba(255, 255, 255, 0.3); }
+
+        #drawer ul { list-style: none; }
+        #drawer ul li {
+            padding: 12px 16px; margin-bottom: 12px; background: rgba(255, 255, 255, 0.08); 
+            border-radius: 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer; 
+            transition: all 0.3s ease; display: flex; align-items: center; gap: 12px;
+            border-left: 4px solid transparent; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #drawer ul li span.icon { font-size: 1.2rem; }
+        #drawer ul li:hover { 
+            background: rgba(96, 191, 191, 0.25); color: #60bfbf; 
+            border-left-color: #60bfbf; transform: translateX(5px); 
+        }
+
+        .light{ background:white; }
+        .dark{ background:#333; }
+
+        /* Stylish Sync Music Modal Design */
+        #musicModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(10px); z-index: 100; display: none;
+            flex-direction: column; padding: 20px; font-family: 'Poppins', sans-serif;
+        }
+        .music-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        #musicModal h2 { 
+            color: #fff; 
+            text-align: center; 
+            font-size: 1.8rem; 
+            font-family: 'Pacifico', cursive;
+            background: linear-gradient(45deg, #1db954, #60bfbf, #ffa500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(29, 185, 84, 0.3);
+        }
+        .music-icon-glow {
+            font-size: 1.5rem;
+            animation: bounceNote 1.5s infinite ease-in-out;
+            filter: drop-shadow(0 0 8px #1db954);
+        }
+        @keyframes bounceNote {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        #nowPlaying { color: #1db954; font-size: 0.85rem; text-align: center; margin-bottom: 12px; min-height: 1.2rem; font-weight: 600; }
+        #songSearchInput {
+            width: 100%; padding: 12px 18px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.15);
+            outline: none; font-size: 0.95rem; margin-bottom: 15px; background: rgba(255,255,255,0.07); color: white;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        #songSearchInput::placeholder { color: #888; }
+        #songList { flex: 1; overflow-y: auto; list-style: none; margin-bottom: 15px; }
+        #songList::-webkit-scrollbar { width: 5px; }
+        #songList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        #songList li {
+            background: rgba(25, 25, 25, 0.9); color: #fff; padding: 10px 14px; margin-bottom: 8px;
+            border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s ease;
+        }
+        #songList li:hover { background: rgba(40, 40, 40, 0.95); transform: scale(1.01); }
+        #songList li.playing { border: 1px solid #1db954; background: rgba(30, 40, 30, 0.9); box-shadow: 0 0 10px rgba(29,185,84,0.2); }
+        #songList li img { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; }
+        #songList li div { flex: 1; }
+        #songList li h4 { font-size: 0.9rem; margin-bottom: 2px; color: #fff; font-weight: 600; }
+        #songList li p { font-size: 0.75rem; color: #aaa; }
+        #closeModal {
+            background: linear-gradient(135deg, #1db954, #1aa34a); color: white; border: none; padding: 12px;
+            border-radius: 25px; font-weight: bold; font-size: 1rem; cursor: pointer; width: 100%;
+            box-shadow: 0 5px 15px rgba(29, 185, 84, 0.4); transition: transform 0.2s;
+        }
+        #closeModal:active { transform: scale(0.98); }
+    </style>
+</head> 
+<body>
+    <section id="loadPg">
+       <div class="loader-container">
+           <div class="loader-ring"></div>
+           <div class="loader-ring"></div>
+           <div id="centr">SyncQuiz</div>
+       </div>
+    </section>
+
+    <!-- Hamburger Menu Button -->
+    <button id="menuBtn">☰</button>
+
+    <!-- Fully Redesigned Stylish Half-Side Drawer -->
+    <div id="drawer">
+        <div class="drawer-header">
+            <h3>Select Subject</h3>
+            <button id="drawerClose">&times;</button>
+        </div>
+        <ul id="subjectList">
+            <li data-cat="18"><span class="icon">💻</span> 1. Computer</li>
+            <li data-cat="19"><span class="icon">📐</span> 2. Maths</li>
+            <li data-cat="17"><span class="icon">🔬</span> 3. Science</li>
+            <li data-cat="9"><span class="icon">🌍</span> 4. G.k</li>
+            <li data-cat="10"><span class="icon">📚</span> 5. English</li>
+        </ul>
+    </div>
+
+    <!-- Home Page -->
+    <section id="firstPg">
+       <h2 class="heading">SyncQuiz</h2>
+       
+       <!-- App Logo Badge -->
+       <div class="logo-center-container">
+           <div class="app-logo-badge">
+               <span class="badge-icon">💡</span>
+               <span class="badge-text">SyncQuiz</span>
+           </div>
+       </div>
+       
+       <div class="btnCont">
+          <button class="btn" id="start">Quiz Start</button>
+          <button class="btn" id="mus">🎶</button>
+       </div>
+       <button class="btn dark" id="mode">🌙</button>
+    </section>
+    
+    <!-- Quiz Main Page -->
+    <section id="main">
+       <div id="top">
+         <p id="QNum">1</p>
+         <div id="prog"></div>
+         <span>Sync</span>
+         <span>Quiz</span>
+       </div> 
+       <div id="queCont">
+          <div id="queWrap">
+             <p id="que">Loading question...</p>
+             <button class="opt"></button>
+             <button class="opt"></button>
+             <button class="opt"></button>
+             <button class="opt"></button>
+          </div>
+       </div>
+       <div id="chngBtn">
+          <button id="prev">Prev</button>
+          <button id="nxt">Next</button>
+       </div>
+       <button id="submit">SUBMIT</button>
+    </section>
+
+    <!-- Result Page -->
+    <section id="resultPg">
+       <h2 class="heading">SyncQuiz</h2>
+       <div id="resultBox">
+          <h2>RESULT (<span id="resLevelTitle">Level 1</span>)</h2>
+          <p><b>Total</b><span>:</span><b id="totalQ">5</b></p>
+          <p><b>Attempted</b><span>:</span><b id="atmptd"></b></p>
+          <p><b>Correct</b><span>:</span><b id="crct"></b></p>
+          <p><b>Incorrect</b><span>:</span><b id="incrct"></b></p>
+       </div>
+       <button class="btn" id="replay">Replay Level</button>
+       <button class="btn" id="nextLevelBtn" style="background: #1db954; color: white;">Next Level ➡</button>
+       <button class="btn" onclick="home()">Go to Home</button>
+    </section>
+
+    <!-- Sync Music Modal -->
+    <div id="musicModal">
+        <div class="music-modal-header">
+            <span class="music-icon-glow">🎵</span>
+            <h2>Sync Music</h2>
+            <span class="music-icon-glow">🎧</span>
+        </div>
+        <div id="nowPlaying">Select a song to play...</div>
+        <input type="text" id="songSearchInput" placeholder="Search song name (e.g. Faded)...">
+        <ul id="songList">
+            <p style="color: #aaa; text-align: center; margin-top: 20px;">Type above to search millions of songs...</p>
+        </ul>
+        <button id="closeModal">Close Player</button>
+    </div>
+
+    <audio id="audio" style="display:none;"></audio>
+
+    <script type="text/javascript">
+        var mode = document.querySelector("#mode"),
+            mus = document.querySelector("#mus"),
+            audio = document.querySelector("#audio"),
+            loadPg = document.querySelector("#loadPg"),
+            firstPg = document.querySelector("#firstPg"),
+            start = document.querySelector("#start"),
+            replay = document.querySelector("#replay"),
+            nextLevelBtn = document.querySelector("#nextLevelBtn"),
+            incrct = document.querySelector("#incrct"),
+            crct = document.querySelector("#crct"),
+            atmptd = document.querySelector("#atmptd"),
+            totalQ = document.querySelector("#totalQ"),
+            main = document.querySelector("#main"),
+            resultPg = document.querySelector("#resultPg"),
+            progress = document.querySelector("#prog"),
+            qNum = document.querySelector("#QNum"),
+            nxt = document.querySelector("#nxt"),
+            prev = document.querySelector("#prev"),
+            que = document.querySelector("#que"),
+            opt = document.querySelectorAll(".opt"),
+            root = document.querySelector(":root"),
+            musicModal = document.querySelector("#musicModal"),
+            songSearchInput = document.querySelector("#songSearchInput"),
+            songList = document.querySelector("#songList"),
+            closeModal = document.querySelector("#closeModal"),
+            resLevelTitle = document.querySelector("#resLevelTitle"),
+            nowPlaying = document.querySelector("#nowPlaying"),
+            menuBtn = document.querySelector("#menuBtn"),
+            drawer = document.querySelector("#drawer"),
+            drawerClose = document.querySelector("#drawerClose"),
+            subjectList = document.querySelectorAll("#subjectList li"),
+            allSections = document.querySelectorAll("section");
+
+        var ques = [];
+        var selections = [];
+        var n = 0;
+        var currentLevel = 1;
+        var currentCategory = "9";
+        var trackList = [];
+        var currentSongIndex = 0;
+
+        menuBtn.addEventListener("click", () => drawer.classList.add("open"));
+        drawerClose.addEventListener("click", () => drawer.classList.remove("open"));
+
+        function getQuestionCount(level) {
+            if(level === 1) return 5;
+            if(level === 2) return 15;
+            if(level === 3) return 25;
+            let count = 25 + ((level - 3) * 10);
+            return count > 50 ? 50 : count;
+        }
+
+        function decodeHTML(html) {
+            var txt = document.createElement("textarea");
+            txt.innerHTML = html;
+            return txt.value;
+        }
+
+        function processResults(data) {
+            if(data.results && data.results.length > 0) {
+                ques = data.results.map(item => {
+                    let options = [...item.incorrect_answers, item.correct_answer];
+                    options.sort(() => Math.random() - 0.5);
+                    return {
+                        question: decodeHTML(item.question),
+                        opt1: decodeHTML(options[0]),
+                        opt2: decodeHTML(options[1]),
+                        opt3: decodeHTML(options[2]),
+                        opt4: decodeHTML(options[3]),
+                        ans: decodeHTML(item.correct_answer)
+                    };
+                });
+                totalQ.innerHTML = ques.length;
+                resLevelTitle.innerHTML = "Level " + currentLevel;
+                
+                if(currentLevel >= 10) {
+                    nextLevelBtn.style.display = "none";
+                } else {
+                    nextLevelBtn.style.display = "block";
+                }
+
+                selections = new Array(ques.length).fill(" ");
+                n = 0;
+                return true;
+            }
+            return false;
+        }
+
+        function fetchQuestions(level, category, callback) {
+            currentLevel = level;
+            let qCount = getQuestionCount(level);
+            let url = `https://opentdb.com/api.php?amount=${qCount}&category=${category}&type=multiple`;
+            
+            let isLoaded = false;
+            let safetyTimer = setTimeout(() => {
+                if(!isLoaded) {
+                    isLoaded = true;
+                    if(ques.length === 0) {
+                        ques = [
+                            {question: "Sample Question 1? (API Backup)", opt1: "A", opt2: "B", opt3: "C", opt4: "D", ans: "A"}
+                        ];
+                        totalQ.innerHTML = ques.length;
+                        resLevelTitle.innerHTML = "Level " + currentLevel;
+                        selections = new Array(ques.length).fill(" ");
+                        n = 0;
+                    }
+                    if(callback) callback();
+                }
+            }, 4000);
+
+            fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if(!isLoaded) {
+                    if(data.response_code === 0 && data.results && data.results.length > 0) {
+                        isLoaded = true;
+                        clearTimeout(safetyTimer);
+                        processResults(data);
+                        if(callback) callback();
+                    } else {
+                        let fallbackUrl = `https://opentdb.com/api.php?amount=${qCount}&category=9&type=multiple`;
+                        fetch(fallbackUrl)
+                        .then(res2 => res2.json())
+                        .then(data2 => {
+                            if(!isLoaded) {
+                                isLoaded = true;
+                                clearTimeout(safetyTimer);
+                                processResults(data2);
+                                if(callback) callback();
+                            }
+                        }).catch(e => {
+                            if(!isLoaded) {
+                                isLoaded = true;
+                                clearTimeout(safetyTimer);
+                                if(callback) callback();
+                            }
+                        });
+                    }
+                }
+            })
+            .catch(err => {
+                if(!isLoaded) {
+                    isLoaded = true;
+                    clearTimeout(safetyTimer);
+                    ques = [
+                        {question: "Network Error! Check connection.", opt1: "Retry", opt2: "OK", opt3: "Cancel", opt4: "None", ans: "Retry"}
+                    ];
+                    totalQ.innerHTML = ques.length;
+                    selections = new Array(ques.length).fill(" ");
+                    n = 0;
+                    if(callback) callback();
+                }
+            });
+        }
+
+        subjectList.forEach(li => {
+            li.addEventListener("click", function() {
+                currentCategory = this.getAttribute("data-cat");
+                drawer.classList.remove("open");
+                
+                loadPg.style.display = "flex";
+                loadPg.style.left = "0";
+                
+                fetchQuestions(1, currentCategory, () => {
+                    setTimeout(() => {
+                        loadPg.style.left = "-100%";
+                        setTimeout(() => loadPg.style.display = "none", 500);
+                    }, 500);
+                });
+
+                main.style.display = "block";
+                setTimeout(() => { main.style.left = "0"; firstPg.style.display = "none"; }, 10);
+                showQuestion(0);
+            });
+        });
+
+        function searchOnlineSongs(query) {
+            if(!query) return;
+            songList.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">Searching songs...</p>`;
+            fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicTrack&limit=20`)
+            .then(res => res.json())
+            .then(data => {
+                songList.innerHTML = "";
+                if(data.results.length === 0) {
+                    songList.innerHTML = `<p style="color: #aaa; text-align: center; margin-top: 20px;">No songs found!</p>`;
+                    return;
+                }
+                trackList = data.results;
+                renderSongList();
+            })
+            .catch(err => { songList.innerHTML = `<p style="color: red; text-align: center;">Network error!</p>`; });
+        }
+
+        function renderSongList() {
+            songList.innerHTML = "";
+            trackList.forEach((track, index) => {
+                let li = document.createElement("li");
+                if(index === currentSongIndex && !audio.paused) {
+                    li.classList.add("playing");
+                }
+                li.innerHTML = `
+                    <img src="${track.artworkUrl100}" alt="Art">
+                    <div>
+                        <h4>${track.trackName}</h4>
+                        <p>${track.artistName}</p>
+                    </div>
+                    <span style="font-size: 1.2rem;">${(index === currentSongIndex && !audio.paused) ? '⏸' : '▶'}</span>
+                `;
+                li.addEventListener("click", () => playSong(index));
+                songList.appendChild(li);
+            });
+        }
+
+        function playSong(index) {
+            if(index < 0 || index >= trackList.length) return;
+            currentSongIndex = index;
+            let track = trackList[index];
+            
+            audio.src = track.previewUrl;
+            audio.play().then(() => {
+                mus.style.background = "#1db954";
+                nowPlaying.innerHTML = "Playing: " + track.trackName + " - " + track.artistName;
+                renderSongList();
+            }).catch(e => {
+                nowPlaying.innerHTML = "Playback error!";
+            });
+        }
+
+        audio.addEventListener("ended", function() {
+            if(trackList.length > 0) {
+                let nextIndex = (currentSongIndex + 1) % trackList.length;
+                playSong(nextIndex);
+            }
+        });
+
+        mus.addEventListener("click", () => musicModal.style.display = "flex");
+        closeModal.addEventListener("click", () => musicModal.style.display = "none");
+
+        let searchTimeout;
+        songSearchInput.addEventListener("input", function() {
+            clearTimeout(searchTimeout);
+            let query = this.value;
+            searchTimeout = setTimeout(() => searchOnlineSongs(query), 500);
+        });
+
+        function showQuestion(index) {
+            if(ques.length === 0) return;
+            qNum.innerHTML = index + 1;
+            progress.style.width = ((index + 1) / ques.length * 100) + "%";
+            que.innerHTML = ques[index].question;
+            for (let i = 0; i < opt.length; i++) {
+                opt[i].innerHTML = ques[index]["opt" + (i + 1)];
+                opt[i].style.background = "#232323";
+                if (selections[index] === opt[i].innerHTML) {
+                    opt[i].style.background = "orange";
+                }
+            }
+        }
+
+        nxt.addEventListener("click", () => { if (n < ques.length - 1) { n++; showQuestion(n); } if(navigator.vibrate) navigator.vibrate(50); });
+        prev.addEventListener("click", () => { if (n > 0) { n--; showQuestion(n); } if(navigator.vibrate) navigator.vibrate(50); });
+
+        opt.forEach(button => {
+            button.addEventListener("click", function() {
+                selections[n] = this.innerHTML;
+                opt.forEach(b => b.style.background = "#232323");
+                this.style.background = "orange";
+            });
+        });
+
+        document.getElementById("submit").addEventListener("click", () => {
+            let correctCount = 0, attemptedCount = 0;
+            selections.forEach((sel, i) => {
+                if (sel !== " ") {
+                    attemptedCount++;
+                    if (sel === ques[i].ans) correctCount++;
+                }
+            });
+            crct.innerHTML = correctCount;
+            incrct.innerHTML = attemptedCount - correctCount;
+            atmptd.innerHTML = attemptedCount;
+            main.style.display = "none";
+            resultPg.style.display = "block";
+            setTimeout(() => resultPg.style.left = "0", 10);
+        });
+
+        replay.addEventListener("click", () => {
+            loadPg.style.display = "flex";
+            loadPg.style.left = "0";
+            fetchQuestions(currentLevel, currentCategory, () => {
+                setTimeout(() => {
+                    loadPg.style.left = "-100%";
+                    setTimeout(() => loadPg.style.display = "none", 500);
+                }, 500);
+            });
+            resultPg.style.left = "100%";
+            setTimeout(() => { resultPg.style.display = "none"; main.style.display = "block"; }, 500);
+            showQuestion(0);
+        });
+
+        nextLevelBtn.addEventListener("click", () => {
+            if(currentLevel < 10) {
+                currentLevel++;
+                loadPg.style.display = "flex";
+                loadPg.style.left = "0";
+                fetchQuestions(currentLevel, currentCategory, () => {
+                    setTimeout(() => {
+                        loadPg.style.left = "-100%";
+                        setTimeout(() => loadPg.style.display = "none", 500);
+                    }, 500);
+                });
+                resultPg.style.left = "100%";
+                setTimeout(() => { resultPg.style.display = "none"; main.style.display = "block"; }, 500);
+                showQuestion(0);
+            }
+        });
+
+        start.addEventListener("click", () => {
+            loadPg.style.display = "flex";
+            loadPg.style.left = "0";
+            
+            fetchQuestions(1, currentCategory, () => {
+                setTimeout(() => {
+                    loadPg.style.left = "-100%";
+                    setTimeout(() => loadPg.style.display = "none", 500);
+                }, 500);
+            });
+
+            main.style.display = "block";
+            setTimeout(() => { main.style.left = "0"; firstPg.style.display = "none"; }, 10);
+            showQuestion(0);
+        });
+
+        function home() {
+            firstPg.style.display = "block";
+            resultPg.style.left = "100%";
+            setTimeout(() => resultPg.style.display = "none", 500);
+        }
+
+        const bgList = [
+            "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=800&q=80"
+        ];
+        let bgIndex = 0;
+
+        mode.addEventListener("click", () => {
+            bgIndex = (bgIndex + 1) % bgList.length;
+            let newBg = `linear-gradient(rgba(1, 19, 51, 0.7), rgba(1, 19, 51, 0.7)), url('${bgList[bgIndex]}')`;
+            
+            allSections.forEach(sec => {
+                sec.style.backgroundImage = newBg;
+            });
+
+            if (mode.classList.contains("dark")) {
+                root.style.setProperty("--mode-color", "#013");
+                root.style.setProperty("--dot-color", "#308a8a");
+                mode.className = "btn light";
+                mode.innerHTML = "🔆";
+            } else {
+                root.style.setProperty("--mode-color", "#60bfbf");
+                root.style.setProperty("--dot-color", "white");
+                mode.className = "btn dark";
+                mode.innerHTML = "🌙";
+            }
+        });
+
+        fetchQuestions(1, currentCategory, () => {
+            setTimeout(() => {
+                loadPg.style.left = "-100%";
+                setTimeout(() => loadPg.style.display = "none", 500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
